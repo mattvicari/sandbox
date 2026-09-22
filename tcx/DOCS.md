@@ -15,7 +15,8 @@ The add-on image is built FROM `ghcr.io/liptonj/amd64-tcx-client:native-ha-api` 
 2. Install the **Jandy TCX Client** add-on
 3. Configure Jandy username and password
 4. Start the add-on
-5. Install the `tcx` custom integration (copy `custom_components/tcx` into `/config/custom_components/`) and add it with URL `http://af1e6959-tcx-client:5050`
+5. Install the `tcx` custom integration: copy this repo's `tcx/custom_components/tcx` folder into `/config/custom_components/tcx` on your Home Assistant instance (via the Samba share, the Studio Code Server/File Editor add-on, or SSH), then restart Home Assistant
+6. Go to **Settings → Devices & Services → + Add Integration**, search for **Jandy TCX**, and enter the add-on's internal hostname (see the add-on's **Info** tab, e.g. `af1e6959-tcx-client`) and port `5050`
 
 ---
 

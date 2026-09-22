@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to the Jandy TCX Client add-on",
+        "description": "Enter the add-on's internal hostname (Settings → Add-ons → Jandy TCX Client → Info) and port.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the add-on's REST API at that host/port."
+    },
+    "abort": {
+      "already_configured": "This add-on is already configured."
+    }
+  }
+}
