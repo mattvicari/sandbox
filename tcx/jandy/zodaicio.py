@@ -56,7 +56,16 @@ class JandyTCX:
 			"password": self.password
 		}
 		x = requests.post(url, json=auth_obj, headers=headers)
-		self.user = x.json()
+		body = x.json()
+		if not isinstance(body, dict) or "userPoolOAuth" not in body:
+			_LOGGER.error(
+				"Jandy login failed (HTTP %s): %s", x.status_code, x.text[:500]
+			)
+			raise ConnectionException(
+				f"Jandy login did not return credentials (HTTP {x.status_code}): "
+				f"{x.text[:500]!r}"
+			)
+		self.user = body
 		_LOGGER.info(f"Token Expires in: {int(self.user['userPoolOAuth']['ExpiresIn'])/60} minutes")
 		if CONST.display_message:
 			_LOGGER.debug(json.dumps(self.user, indent=4, sort_keys=True))

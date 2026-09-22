@@ -1,3 +1,8 @@
+## 2026.9.1.3
+
+- Surface the real HTTP status/body when Jandy login fails instead of crashing
+  with a cryptic `TypeError` when the cloud API doesn't return credentials
+
 ## 2026.9.1.2
 
 - Vendor the `jandy` package in-tree instead of depending on the unmaintained,
