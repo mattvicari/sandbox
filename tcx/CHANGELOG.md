@@ -1,3 +1,10 @@
+## 2026.9.1.2
+
+- Vendor the `jandy` package in-tree instead of depending on the unmaintained,
+  amd64-only `ghcr.io/liptonj/amd64-tcx-client:native-ha-api` base image
+- Build FROM `ghcr.io/home-assistant/{arch}-base-python:3.12-alpine3.20`, which
+  publishes both amd64 and aarch64, so the add-on now builds natively on aarch64
+
 ## 2026.9.1
 
 - Overlay the token-preserving native client, safe launcher, and periodic full-state refresh

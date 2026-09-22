@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta http-equiv="refresh" content="30">
+<title>Jandy TCX</title>
+<style>
+  :root {
+    --bg:       #0f172a;
+    --surface:  #1e293b;
+    --border:   #334155;
+    --muted:    #475569;
+    --subtle:   #64748b;
+    --text:     #e2e8f0;
+    --primary:  #2563eb;
+    --accent:   #93c5fd;
+    --green:    #22c55e;
+    --amber:    #f59e0b;
+    --red:      #ef4444;
+    --radius:   12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── Header ─────────────────────────────── */
+  header {
+    background: #1e3a5f;
+    padding: 0.9rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 700; white-space: nowrap; }
+  nav { display: flex; gap: 0.1rem; flex-wrap: wrap; }
+  nav a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.8rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  nav a:hover, nav a.active { background: rgba(147,197,253,0.15); color: #fff; }
+
+  /* ── Layout ─────────────────────────────── */
+  .page { max-width: 700px; margin: 0 auto; padding: 1rem; }
+  .refresh-note { font-size: 0.7rem; color: var(--muted); text-align: right; margin-bottom: 0.75rem; }
+
+  /* ── Section headings ────────────────────── */
+  .section-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 1.25rem 0 0.5rem;
+  }
+
+  /* ── Sensor tile grid ────────────────────── */
+  .tile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 0.6rem;
+  }
+  .tile {
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 0.85rem 0.9rem;
+  }
+  .tile-label { font-size: 0.65rem; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
+  .tile-value { font-size: 1.45rem; font-weight: 700; line-height: 1.1; color: var(--text); }
+  .tile-value.on   { color: var(--green); }
+  .tile-value.off  { color: var(--muted); }
+  .tile-value.warn { color: var(--amber); }
+  .tile-value.high { color: var(--red);   }
+  .tile-unit   { font-size: 0.72rem; color: var(--subtle); margin-top: 0.15rem; }
+  .tile-source { font-size: 0.62rem; color: var(--border); margin-top: 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── Control cards ───────────────────────── */
+  .control-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+  }
+  .ctrl-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .ctrl-name { font-size: 0.72rem; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.05em; }
+  .ctrl-state {
+    font-size: 1.3rem;
+    font-weight: 700;
+  }
+  .ctrl-state.on  { color: var(--green); }
+  .ctrl-state.off { color: var(--muted); }
+  .ctrl-state.unknown { color: var(--muted); font-size: 1rem; }
+
+  .toggle-row { display: flex; gap: 0.5rem; }
+  .btn-on, .btn-off, .btn-set {
+    flex: 1;
+    border: none;
+    border-radius: 8px;
+    padding: 0.65rem 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    min-height: 44px;
+    transition: opacity 0.15s;
+  }
+  .btn-on          { background: var(--border); color: var(--subtle); }
+  .btn-on.active   { background: var(--green);  color: #fff; }
+  .btn-off         { background: var(--border); color: var(--subtle); }
+  .btn-off.active  { background: #374151;       color: var(--text); }
+  .btn-on:hover:not(.active)  { opacity: 0.8; }
+  .btn-off:hover:not(.active) { opacity: 0.8; }
+
+  /* Setpoint control */
+  .setpoint-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .setpoint-row form { display: contents; }
+  .sp-adj {
+    background: var(--border);
+    color: var(--text);
+    border: none;
+    border-radius: 8px;
+    width: 44px;
+    height: 44px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .sp-adj:hover { background: var(--muted); }
+  .sp-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.45rem 0.5rem;
+    text-align: center;
+    width: 0;
+    min-width: 0;
+    height: 44px;
+  }
+  .sp-input:focus { outline: none; border-color: var(--primary); }
+  .btn-set {
+    background: var(--primary);
+    color: #fff;
+    flex: 0 0 auto;
+    padding: 0.45rem 0.8rem;
+    width: auto;
+  }
+  .btn-set:hover { background: #1d4ed8; }
+  .sp-hint { font-size: 0.68rem; color: var(--muted); }
+
+  /* ── Info card (settings / pool config) ─── */
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.25rem;
+    margin-top: 0.6rem;
+  }
+  .card h2 {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--bg);
+    font-size: 0.83rem;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-key { color: var(--subtle); flex-shrink: 0; }
+  .info-val { color: var(--text); font-weight: 500; text-align: right; }
+
+  /* Outdoor temp picker */
+  .entity-form { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-top: 0.6rem; }
+  select {
+    flex: 1;
+    min-width: 0;
+    padding: 0.55rem 0.7rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.85rem;
+    height: 44px;
+  }
+  select:focus { outline: none; border-color: var(--primary); }
+  .btn-apply {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0 1.1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    height: 44px;
+    white-space: nowrap;
+  }
+  .btn-apply:hover { background: #1d4ed8; }
+
+  .no-data { color: var(--muted); font-style: italic; font-size: 0.8rem; }
+  .chem-range { font-size: 0.65rem; color: var(--muted); }
+
+  /* ── Mobile tweaks ───────────────────────── */
+  @media (max-width: 420px) {
+    .page { padding: 0.75rem; }
+    .tile-grid { grid-template-columns: repeat(2, 1fr); }
+    .control-grid { grid-template-columns: 1fr 1fr; }
+    .tile-value { font-size: 1.25rem; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🏊 Jandy TCX</h1>
+  <nav>
+    <a href="/" class="active">Dashboard</a>
+    <a href="/chemistry">Chemistry</a>
+    <a href="/tcxreconnect">Reconnect</a>
+  </nav>
+</header>
+
+<div class="page">
+  <p class="refresh-note">Auto-refreshes every 30 s</p>
+
+  <!-- ── Pool sensors ──────────────────────── -->
+  <div class="section-title">Pool</div>
+  <div class="tile-grid">
+
+    <div class="tile">
+      <div class="tile-label">Water Temp</div>
+      <div class="tile-value">{{ "%.1f"|format(info.water) if info.water != '' else '—' }}</div>
+      <div class="tile-unit">°F</div>
+    </div>
+
+    <div class="tile">
+      <div class="tile-label">Setpoint</div>
+      <div class="tile-value">{{ "%.1f"|format(info.heaterSetpoint) if info.heaterSetpoint != '' else '—' }}</div>
+      <div class="tile-unit">°F</div>
+    </div>
+
+    <div class="tile">
+      <div class="tile-label">Time to Setpoint</div>
+      {% if info.timeToSetpoint != '' %}
+        {% set ttp = info.timeToSetpoint | int %}
+        <div class="tile-value {% if ttp == 0 %}on{% endif %}">
+          {% if ttp == 0 %}At temp{% else %}{{ ttp }}{% endif %}
+        </div>
+        <div class="tile-unit">{% if ttp != 0 %}min{% endif %}</div>
+      {% else %}
+        <div class="tile-value off">—</div>
+        <div class="tile-unit">min</div>
+      {% endif %}
+    </div>
+
+    <div class="tile">
+      <div class="tile-label">Outdoor Temp</div>
+      <div class="tile-value">{{ "%.1f"|format(info.outdoorTemp) if info.outdoorTemp != '' else '—' }}</div>
+      <div class="tile-unit">°F{% if outdoor_entity %} <span class="chem-range">{{ outdoor_entity.split('.')[-1].replace('_',' ') }}</span>{% endif %}</div>
+    </div>
+
+    <div class="tile">
+      <div class="tile-label">Enclosure Air</div>
+      <div class="tile-value">{{ "%.1f"|format(info.air) if info.air != '' else '—' }}</div>
+      <div class="tile-unit">°F</div>
+    </div>
+
+    <div class="tile">
+      <div class="tile-label">Pump</div>
+      {% if info.system == 'ON' %}
+        <div class="tile-value on">ON</div>
+        {% if info.pumpPreset %}
+          <div class="tile-unit">{{ info.pumpPreset }}</div>
+        {% endif %}
+      {% elif info.system == 'OFF' %}
+        <div class="tile-value off">OFF</div>
+      {% else %}
+        <div class="tile-value off">—</div>
+      {% endif %}
+    </div>
+
+    <div class="tile">
+      <div class="tile-label">Pump Speed</div>
+      <div class="tile-value">{{ info.pumpRpm | int if info.pumpRpm != '' else '—' }}</div>
+      {% if info.pumpRpm != '' %}<div class="tile-unit">RPM</div>{% endif %}
+    </div>
+
+    <div class="tile">
+      <div class="tile-label">SWC Output</div>
+      <div class="tile-value">{{ info.swc if info.swc != '' else '—' }}</div>
+      {% if info.swc != '' %}<div class="tile-unit">%</div>{% endif %}
+    </div>
+
+    <div class="tile">
+      <div class="tile-label">Light</div>
+      {% if info.light == 'ON' %}
+        <div class="tile-value on">ON</div>
+        {% if info.lightColorName %}
+          <div class="tile-unit">{{ info.lightColorName }}</div>
+        {% endif %}
+      {% elif info.light == 'OFF' %}
+        <div class="tile-value off">OFF</div>
+      {% else %}
+        <div class="tile-value off">—</div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- ── Water chemistry ───────────────────── -->
+  <div class="section-title">Water Chemistry</div>
+  <div class="tile-grid">
+
+    <div class="tile">
+      <div class="tile-label">Salinity</div>
+      {% if info.salinity_gl != '' %}
+        <div class="tile-value">{{ info.salinity_gl }}</div>
+        <div class="tile-unit">g/L <span class="chem-range">2.7–3.4</span></div>
+        <div class="tile-source">TCX sensor</div>
+      {% elif chemistry.salinity is defined %}
+        <div class="tile-value">{{ chemistry.salinity.value | int }}</div>
+        <div class="tile-unit">{{ chemistry.salinity.unit }}</div>
+        <div class="tile-source">{{ chemistry.salinity.friendly_name }}</div>
+      {% else %}
+        <div class="tile-value off">—</div>
+      {% endif %}
+    </div>
+
+    <div class="tile">
+      <div class="tile-label">pH</div>
+      {% if chemistry.ph is defined %}
+        {% set ph = chemistry.ph.value %}
+        <div class="tile-value {% if ph < 7.2 or ph > 7.8 %}high{% elif ph < 7.4 or ph > 7.6 %}warn{% endif %}">
+          {{ "%.1f"|format(ph) }}
+        </div>
+        <div class="tile-unit"><span class="chem-range">7.4–7.6</span></div>
+        <div class="tile-source">{{ chemistry.ph.friendly_name }}</div>
+      {% else %}
+        <div class="tile-value off">—</div>
+        <div class="tile-unit"><span class="chem-range">7.4–7.6</span></div>
+      {% endif %}
+    </div>
+
+    <div class="tile">
+      <div class="tile-label">ORP</div>
+      {% if chemistry.orp is defined %}
+        {% set orp = chemistry.orp.value %}
+        <div class="tile-value {% if orp < 650 %}warn{% elif orp > 750 %}high{% endif %}">
+          {{ orp | int }}
+        </div>
+        <div class="tile-unit">mV <span class="chem-range">650–750</span></div>
+        <div class="tile-source">{{ chemistry.orp.friendly_name }}</div>
+      {% else %}
+        <div class="tile-value off">—</div>
+        <div class="tile-unit"><span class="chem-range">650–750 mV</span></div>
+      {% endif %}
+    </div>
+
+    <div class="tile">
+      <div class="tile-label">Free Chlorine</div>
+      {% if chemistry.fc is defined %}
+        {% set fc = chemistry.fc.value %}
+        <div class="tile-value {% if fc < 1 or fc > 5 %}high{% elif fc < 1.5 or fc > 3 %}warn{% endif %}">
+          {{ "%.1f"|format(fc) }}
+        </div>
+        <div class="tile-unit">ppm <span class="chem-range">1–3</span></div>
+        <div class="tile-source">{{ chemistry.fc.friendly_name }}</div>
+      {% else %}
+        <div class="tile-value off">—</div>
+        <div class="tile-unit"><span class="chem-range">1–3 ppm</span></div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- ── Controls ─────────────────────────── -->
+  <div class="section-title">Controls</div>
+  <div class="control-grid">
+
+    <!-- Pump -->
+    <div class="ctrl-card" style="grid-column: 1 / -1;">
+      <div class="ctrl-name">Pool Pump</div>
+      <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+        <div class="ctrl-state {% if info.system == 'ON' %}on{% elif info.system == 'OFF' %}off{% else %}unknown{% endif %}" style="min-width:2.5rem;">
+          {{ info.system if info.system else '—' }}
+        </div>
+        {% if info.pumpRpm and info.pumpRpm != '' %}
+          <div style="font-size:0.85rem; color:var(--subtle);">
+            {{ info.pumpRpm | int }} RPM
+            {% if info.pumpPreset %}<span style="color:var(--accent); font-weight:600;"> · {{ info.pumpPreset }}</span>{% endif %}
+          </div>
+        {% endif %}
+      </div>
+      <div class="toggle-row">
+        <form method="POST" action="/control/pump">
+          <input type="hidden" name="state" value="on">
+          <button type="submit" class="btn-on {% if info.system == 'ON' %}active{% endif %}">ON</button>
+        </form>
+        <form method="POST" action="/control/pump">
+          <input type="hidden" name="state" value="off">
+          <button type="submit" class="btn-off {% if info.system == 'OFF' %}active{% endif %}"
+            onclick="return confirm('Turn pump OFF?')">OFF</button>
+        </form>
+      </div>
+      {% if pump_speed_list %}
+      <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+        {% set current_rpm = info.pumpRpm | int if info.pumpRpm != '' else 0 %}
+        {% for preset in pump_speed_list %}
+        <form method="POST" action="/control/pump/speed" style="flex:1; min-width:80px;">
+          <input type="hidden" name="rpm" value="{{ preset.speed }}">
+          <button type="submit" class="btn-on {% if current_rpm == preset.speed %}active{% endif %}"
+            style="width:100%; font-size:0.75rem; padding:0.5rem 0.25rem;">
+            {{ preset.name }}<br><span style="font-size:0.65rem; opacity:0.8;">{{ preset.speed }} RPM</span>
+          </button>
+        </form>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Heater on/off -->
+    <div class="ctrl-card">
+      <div class="ctrl-name">Heater</div>
+      <div class="ctrl-state {% if info.heaterEnabled == 'ON' %}on{% elif info.heaterEnabled == 'OFF' %}off{% else %}unknown{% endif %}">
+        {{ info.heaterEnabled if info.heaterEnabled else '—' }}
+      </div>
+      <div class="toggle-row">
+        <form method="POST" action="/control/heater">
+          <input type="hidden" name="state" value="on">
+          <button type="submit" class="btn-on {% if info.heaterEnabled == 'ON' %}active{% endif %}">ON</button>
+        </form>
+        <form method="POST" action="/control/heater">
+          <input type="hidden" name="state" value="off">
+          <button type="submit" class="btn-off {% if info.heaterEnabled == 'OFF' %}active{% endif %}">OFF</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Heater setpoint -->
+    <div class="ctrl-card">
+      <div class="ctrl-name">Setpoint</div>
+      <div class="ctrl-state">
+        {{ "%.0f"|format(info.heaterSetpoint) if info.heaterSetpoint != '' else '—' }}
+        {% if info.heaterSetpoint != '' %}<span style="font-size:0.8rem;color:var(--subtle)">°F</span>{% endif %}
+      </div>
+      <form method="POST" action="/control/setpoint" id="sp-form">
+        <div class="setpoint-row">
+          <button type="button" class="sp-adj" onclick="adjustSP(-1)">−</button>
+          <input type="number" id="sp-val" name="temp_f" class="sp-input" min="60" max="104" step="1"
+            value="{{ info.heaterSetpoint | int if info.heaterSetpoint != '' else 88 }}"
+            aria-label="Setpoint °F">
+          <button type="button" class="sp-adj" onclick="adjustSP(1)">＋</button>
+          <button type="submit" class="btn-set">Set</button>
+        </div>
+      </form>
+      <div class="sp-hint">60–104 °F</div>
+    </div>
+
+    <!-- Light -->
+    <div class="ctrl-card" style="grid-column: 1 / -1;">
+      <div class="ctrl-name">Pool Light</div>
+      <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+        <div class="ctrl-state {% if info.light == 'ON' %}on{% elif info.light == 'OFF' %}off{% else %}unknown{% endif %}" style="min-width:2.5rem;">
+          {{ info.light if info.light else '—' }}
+        </div>
+        {% if info.light == 'ON' and info.lightColorName %}
+          <div style="font-size:0.85rem; color:var(--accent); font-weight:600;">{{ info.lightColorName }}</div>
+        {% endif %}
+      </div>
+      <div class="toggle-row">
+        <form method="POST" action="/control/light">
+          <input type="hidden" name="state" value="on">
+          <button type="submit" class="btn-on {% if info.light == 'ON' %}active{% endif %}">ON</button>
+        </form>
+        <form method="POST" action="/control/light">
+          <input type="hidden" name="state" value="off">
+          <button type="submit" class="btn-off {% if info.light == 'OFF' %}active{% endif %}">OFF</button>
+        </form>
+      </div>
+      <form method="POST" action="/control/light/color" style="display:flex; gap:0.5rem; align-items:center;">
+        <select name="color" style="flex:1; height:44px;">
+          {% set colors = [
+            (1,'SAm'),(2,'Party'),(3,'Romance'),(4,'Caribbean'),(5,'American'),
+            (6,'California Sunset'),(7,'Royal'),(8,'Blue'),(9,'Green'),
+            (10,'Red'),(11,'White'),(12,'Magenta')
+          ] %}
+          {% set current_color = info.lightColor | int if info.lightColor != '' else 0 %}
+          {% for num, name in colors %}
+          <option value="{{ num }}" {% if current_color == num %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn-set" style="flex:0 0 auto;">Set Color</button>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- ── Outdoor temp picker ───────────────── -->
+  <div class="card">
+    <h2>Outdoor Temperature Source</h2>
+    {% if outdoor_entity %}
+    <div class="info-row">
+      <span class="info-key">Active</span>
+      <span class="info-val" style="font-size:0.75rem;word-break:break-all;">{{ outdoor_entity }}</span>
+    </div>
+    {% endif %}
+
+    {% if otv and otv.candidates %}
+    <div style="margin: 0.75rem 0 0.5rem; font-size:0.7rem; color:var(--subtle); text-transform:uppercase; letter-spacing:0.05em;">Sensor Comparison</div>
+    <div style="background:var(--bg); border-radius:8px; overflow:hidden; margin-bottom:0.75rem;">
+      {% if otv.tcx_air_f is not none %}
+      <div class="info-row" style="padding:0.3rem 0.6rem; font-size:0.78rem;">
+        <span class="info-key">TCX Enclosure Air</span>
+        <span class="info-val">{{ "%.1f"|format(otv.tcx_air_f) }} °F</span>
+      </div>
+      {% endif %}
+      {% for c in otv.candidates[:5] %}
+      {% set is_active = (c.entity_id == outdoor_entity) %}
+      <div class="info-row" style="padding:0.3rem 0.6rem; font-size:0.78rem; {% if is_active %}background:rgba(37,99,235,0.12);{% endif %}">
+        <span class="info-key" style="{% if is_active %}color:var(--accent);{% endif %}">
+          {{ c.friendly_name }}
+          {% if is_active %}<span style="font-size:0.65rem;background:var(--primary);color:#fff;padding:0.1rem 0.35rem;border-radius:4px;margin-left:0.3rem;">active</span>{% endif %}
+        </span>
+        <span class="info-val">
+          {{ "%.1f"|format(c.value_f) }} °F
+          {% if c.delta_from_configured is not none and not is_active %}
+            <span style="font-size:0.72rem;color:{% if c.delta_from_configured|abs > 10 %}var(--amber){% else %}var(--subtle){% endif %};">
+              {{ "%+.1f"|format(c.delta_from_configured) }}°F
+            </span>
+          {% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/settings" class="entity-form">
+      {% if temp_sensors %}
+      <select name="outdoor_temp_entity">
+        <option value="">— pick a sensor —</option>
+        {% for s in temp_sensors %}
+        <option value="{{ s.entity_id }}" {% if s.entity_id == outdoor_entity %}selected{% endif %}>
+          {{ s.friendly_name }} ({{ s.state }} {{ s.unit }})
+        </option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn-apply">Apply</button>
+      {% else %}
+      <span class="no-data">No temperature sensors found in Home Assistant</span>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- ── Pool config ───────────────────────── -->
+  <div class="card" style="margin-bottom:1.5rem">
+    <h2>Pool Configuration</h2>
+    <div class="info-row">
+      <span class="info-key">Volume</span>
+      <span class="info-val">{{ "{:,}".format(pool_volume) }} gal</span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Shape</span>
+      <span class="info-val">{{ pool_shape | capitalize }}</span>
+    </div>
+    {% if pool_length %}
+    <div class="info-row">
+      <span class="info-key">Dimensions</span>
+      <span class="info-val">{{ pool_length | int }} × {{ pool_width | int }} ft, avg depth {{ "%.1f"|format(pool_depth) }} ft</span>
+    </div>
+    {% endif %}
+    <div class="info-row">
+      <span class="info-key">Heater</span>
+      <span class="info-val">{% if heater_btu %}{{ "{:,}".format(heater_btu) }} BTU/hr{% else %}Not configured{% endif %}</span>
+    </div>
+  </div>
+
+</div>
+<script>
+function adjustSP(delta) {
+  var inp = document.getElementById('sp-val');
+  var v = Math.round(parseFloat(inp.value) || 88) + delta;
+  inp.value = Math.max(60, Math.min(104, v));
+}
+</script>
+</body>
+</html>

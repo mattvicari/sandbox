@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Pool Chemistry Calculator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+  header { background: #1e3a5f; padding: 0.9rem 1rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; position: sticky; top: 0; z-index: 10; }
+  header h1 { font-size: 1.1rem; font-weight: 700; white-space: nowrap; }
+  nav { display: flex; gap: 0.1rem; flex-wrap: wrap; }
+  nav a { color: #93c5fd; text-decoration: none; font-size: 0.8rem; padding: 0.35rem 0.65rem; border-radius: 6px; white-space: nowrap; }
+  nav a:hover, nav a.active { background: rgba(147,197,253,0.15); color: #fff; }
+  .container { max-width: 700px; margin: 0 auto; padding: 1rem; }
+  .card { background: #1e293b; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; }
+  .card h2 { font-size: 0.75rem; font-weight: 700; color: #93c5fd; margin-bottom: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.85rem; }
+  label { display: block; font-size: 0.78rem; color: #94a3b8; margin-bottom: 0.3rem; }
+  input[type=number], input[type=text] {
+    width: 100%; padding: 0.6rem 0.75rem; background: #0f172a; border: 1px solid #334155;
+    border-radius: 8px; color: #e2e8f0; font-size: 1rem; height: 44px;
+  }
+  input:focus { outline: none; border-color: #3b82f6; }
+  .info { font-size: 0.72rem; color: #64748b; margin-top: 0.25rem; }
+  .vol-badge { display: inline-block; background: #1e3a5f; color: #93c5fd; font-size: 0.78rem;
+    padding: 0.3rem 0.75rem; border-radius: 6px; margin-bottom: 0.9rem; }
+  button {
+    background: #2563eb; color: #fff; border: none; border-radius: 8px;
+    padding: 0.7rem 1.75rem; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+    min-height: 44px; margin-top: 0.25rem;
+  }
+  button:hover { background: #1d4ed8; }
+  .rec { border-radius: 10px; padding: 0.9rem 1.1rem; margin-bottom: 0.65rem; display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; align-items: flex-start; }
+  .rec.OK   { background: #052e16; border-left: 4px solid #16a34a; }
+  .rec.LOW  { background: #1c1917; border-left: 4px solid #f59e0b; }
+  .rec.HIGH { background: #1c1917; border-left: 4px solid #ef4444; }
+  .rec-param { font-weight: 700; font-size: 0.92rem; min-width: 160px; }
+  .rec-param .badge { display: inline-block; font-size: 0.68rem; padding: 0.1rem 0.4rem;
+    border-radius: 4px; margin-left: 0.5rem; font-weight: 600; vertical-align: middle; }
+  .badge.OK   { background: #16a34a; color: #fff; }
+  .badge.LOW  { background: #d97706; color: #fff; }
+  .badge.HIGH { background: #dc2626; color: #fff; }
+  .rec-val { font-size: 0.82rem; color: #94a3b8; }
+  .rec-action { font-size: 0.82rem; color: #e2e8f0; flex-basis: 100%; }
+  .rec-chemical { font-size: 0.82rem; color: #67e8f9; margin-top: 0.2rem; }
+  .rec-amount { font-size: 0.82rem; color: #fde68a; font-weight: 600; }
+  .empty { color: #475569; font-style: italic; text-align: center; padding: 2rem; }
+  @media (max-width: 420px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+    .rec-param { min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🏊 Jandy TCX</h1>
+  <nav>
+    <a href="/">Dashboard</a>
+    <a href="/chemistry" class="active">Chemistry</a>
+    <a href="/tcxreconnect">Reconnect</a>
+  </nav>
+</header>
+<div class="container">
+
+  <div class="card">
+    <h2>Enter Test Results</h2>
+    {% if pool_volume %}
+    <div class="vol-badge">Pool: {{ pool_volume }} gallons — amounts scaled to your pool</div>
+    {% else %}
+    <div class="vol-badge" style="background:#1c1917;color:#f59e0b;">Pool volume not configured — set pool dimensions in add-on settings</div>
+    {% endif %}
+    <form method="POST" action="/chemistry">
+      <div class="grid">
+        <div>
+          <label>Free Chlorine (ppm)</label>
+          <input type="number" name="fc" step="0.01" min="0" max="20"
+                 value="{{ form.fc or '' }}" placeholder="e.g. 2.0">
+          <div class="info">Target: 1–3 ppm{% if chemistry_entities.fc %} · from {{ chemistry_entities.fc.friendly_name }}{% endif %}</div>
+        </div>
+        <div>
+          <label>pH</label>
+          <input type="number" name="ph" step="0.01" min="6" max="9"
+                 value="{{ form.ph or '' }}" placeholder="e.g. 7.4">
+          <div class="info">Target: 7.4–7.6{% if chemistry_entities.ph %} · from {{ chemistry_entities.ph.friendly_name }}{% endif %}</div>
+        </div>
+        <div>
+          <label>Total Alkalinity (ppm)</label>
+          <input type="number" name="ta" step="1" min="0" max="300"
+                 value="{{ form.ta or '' }}" placeholder="e.g. 100">
+          <div class="info">Target: 80–120 ppm</div>
+        </div>
+        <div>
+          <label>Calcium Hardness (ppm)</label>
+          <input type="number" name="ch" step="1" min="0" max="1000"
+                 value="{{ form.ch or '' }}" placeholder="e.g. 300">
+          <div class="info">Target: 200–400 ppm</div>
+        </div>
+        <div>
+          <label>Cyanuric Acid / Stabilizer (ppm)</label>
+          <input type="number" name="cya" step="1" min="0" max="200"
+                 value="{{ form.cya or '' }}" placeholder="e.g. 70">
+          <div class="info">Target: 70–80 ppm (SWC pool)</div>
+        </div>
+        <div>
+          <label>Salinity (ppm)</label>
+          <input type="number" name="salinity" step="1" min="0" max="6000"
+                 value="{{ form.salinity or '' }}" placeholder="e.g. 3200">
+          <div class="info">Target: 2700–3400 ppm
+            {% if chemistry_entities.salinity %} · from {{ chemistry_entities.salinity.friendly_name }}
+            {% elif form.salinity %} · auto-filled from TCX{% endif %}
+          </div>
+        </div>
+      </div>
+      <br>
+      <button type="submit">Calculate Recommendations</button>
+    </form>
+  </div>
+
+  {% if results is defined %}
+  <div class="card results">
+    <h2>Recommendations</h2>
+    {% if results %}
+      {% for r in results %}
+      <div class="rec {{ r.status }}">
+        <div class="rec-param">
+          {{ r.param }}
+          <span class="badge {{ r.status }}">{{ r.status }}</span>
+        </div>
+        <div class="rec-val">Current: {{ r.current }} &nbsp;·&nbsp; Target: {{ r.target }}</div>
+        <div class="rec-action">{{ r.action }}</div>
+        {% if r.chemical %}
+        <div class="rec-chemical">Chemical: {{ r.chemical }}</div>
+        {% endif %}
+        {% if r.amount is not none and r.amount %}
+        <div class="rec-amount">Add: {{ r.amount }} {{ r.amount_unit }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">Enter at least one reading above and click Calculate.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+</body>
+</html>
