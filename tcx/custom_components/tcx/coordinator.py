@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import timedelta
 from typing import Any
@@ -36,10 +37,23 @@ class TCXClient:
             async with asyncio.timeout(_REQUEST_TIMEOUT):
                 async with self._session.get(f"{self._base_url}/status") as resp:
                     resp.raise_for_status()
-                    # The add-on returns json.dumps(...) as a plain string body.
-                    return await resp.json(content_type=None)
+                    body = await resp.json(content_type=None)
         except (ClientError, TimeoutError) as err:
             raise TCXApiError(f"Error fetching TCX status: {err}") from err
+
+        if isinstance(body, str):
+            # Add-on versions before 2026.9.1.4 double-encoded this endpoint
+            # (Status.get() returned json.dumps(...), which flask_restful then
+            # JSON-encoded again), so the body decodes to a JSON string
+            # instead of an object. Unwrap it rather than failing outright.
+            try:
+                body = json.loads(body)
+            except ValueError as err:
+                raise TCXApiError(f"Unexpected /status body: {body!r}") from err
+
+        if not isinstance(body, dict):
+            raise TCXApiError(f"Unexpected /status body: {body!r}")
+        return body
 
     async def async_send_command(self, namespace: str, desired: dict[str, Any]) -> None:
         """POST a desired-state command (POST /statecontrol)."""

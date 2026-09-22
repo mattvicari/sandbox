@@ -1,3 +1,9 @@
+## 2026.9.1.4
+
+- Fix `GET /status` returning a double-encoded JSON string instead of a JSON
+  object (`Status.get()` returned `json.dumps(...)`, which flask_restful then
+  encoded again), which broke the `tcx` custom integration's state updates
+
 ## 2026.9.1.3
 
 - Surface the real HTTP status/body when Jandy login fails instead of crashing

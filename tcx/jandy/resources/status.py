@@ -1,4 +1,3 @@
-import json
 import logging
 import threading
 
@@ -12,7 +11,10 @@ class Status (Resource):
 	@staticmethod
 	def get ():
 		#CONST.client.ws.on_open ()
-		return json.dumps(CONST.system_info)
+		# flask_restful JSON-encodes the return value itself; returning an
+		# already-dumped string here double-encodes it into a JSON string
+		# literal instead of a JSON object.
+		return CONST.system_info
 
 class Reconnect(Resource):
 	@staticmethod
