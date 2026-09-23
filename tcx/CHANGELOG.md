@@ -1,3 +1,10 @@
+## 2026.9.1.5
+
+- Surface the raw `TspBdy0` heater payload as `raw_*` attributes on
+  `binary_sensor.tcx_heater`, so an "actively heating" field (not yet
+  identified — Zodiac's cloud API only confirms enabled/setpoint) can be
+  spotted from Developer Tools → States instead of digging through logs
+
 ## 2026.9.1.4
 
 - Fix `GET /status` returning a double-encoded JSON string instead of a JSON

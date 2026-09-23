@@ -1,6 +1,6 @@
 {
   "name": "Jandy TCX Client",
-  "version": "2026.9.1.4",
+  "version": "2026.9.1.5",
   "slug": "tcx-client",
   "init": false,
   "description": "Jandy TCX Client that publishes native Home Assistant sensors and serves pool controls",
