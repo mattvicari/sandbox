@@ -443,11 +443,19 @@ def processHeaterStatus(message, ha_api):
             is_on = bool(tsp["heatEnabled"])
             _LOGGING.info(f"Heater enabled: {is_on}")
             CONST.system_info["heaterEnabled"] = "ON" if is_on else "OFF"
+            # Zodiac's cloud API doesn't document a field for "actively firing"
+            # vs. "enabled but idle" — surface the whole raw TspBdy0 payload as
+            # attributes so it can be inspected in HA (Developer Tools → States)
+            # while the heater cycles, to find whichever key carries that status.
+            raw_attributes = {
+                f"raw_{key}": value for key, value in tsp.items() if "token" not in str(key).lower()
+            }
             ha_api.set_binary_sensor(
                 "binary_sensor.tcx_heater",
                 is_on,
                 device_class="heat",
                 friendly_name="TCX Heater",
+                extra_attributes=raw_attributes,
             )
         _publish_time_to_setpoint(ha_api)
     except Exception as e:
